@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 from time import sleep
 #import urllib.request
 from urllib.parse import urlsplit, urlparse
+from collapsiblepane import CollapsiblePane as cp
+import upsidedown
 
 class Front(object):
     def __init__(self, window):
@@ -22,21 +24,25 @@ class Front(object):
                               highlightthickness=2, font=self.font, command=sys.exit)
         self.exit_bt.grid(row=0, column=furthest_label_column, sticky = "E")
 
-        self.lb = Label(master=self.window,
-                        text="Website to be scraped: ", font=self.font, fg="gray17", bg="gray95")
-        self.lb.grid(row=1, column=0)
+        self.webFrame = Frame(master=self.window, padx=5, pady=5, bg="gray95")
+        self.webFrame.grid(row=1, column=1, columnspan=furthest_label_column, rowspan=2, sticky="NSEW")
+        self.webFrame.grid_columnconfigure(0, weight=1)
+        self.webFrame.grid_rowconfigure(0, weight=1)
+
+        self.lb = Label(self.webFrame, text="Website to be scraped: ", font=self.font, fg="gray17", bg="gray95")
+        self.lb.grid(row=1, column=0, sticky="NSEW")
 
         self.url = StringVar()
 
-        self.url_entry = Entry(master=self.window, textvariable=self.url, bg="gray90", highlightbackground="gray95")
+        self.url_entry = Entry(self.webFrame, textvariable=self.url, bg="gray90", highlightbackground="gray95")
         self.entry_text = "Enter website in URL format"
         self.url_entry.insert(0, self.entry_text)
         self.url_entry.bind("<Button-1>", self.clearWebsiteEntry)
-        self.url_entry.grid(row=1, column=1, columnspan=7, sticky="WE", padx=3, ipadx=1)
+        self.url_entry.grid(row=2, column=0, sticky="NSEW", padx=3, ipadx=1)
 
-        self.bt = Button(master=self.window, text="Search", fg="gray29", bg="gray90", relief = "raised",
+        self.bt = Button(self.webFrame, text="Search", fg="gray29", bg="gray90", relief = "raised",
                          font=self.font, command=self.openWebsite)
-        self.bt.grid(row=1, column=furthest_label_column, sticky="NSEW")
+        self.bt.grid(row=2, column=furthest_label_column, sticky="NSEW")
 
     def openWebsite(self):
         if self.url_entry.get()== self.entry_text or self.url_entry.get() == "":
@@ -71,12 +77,12 @@ class Front(object):
             self.canvas.image = ImageTk.PhotoImage(screenshot)
 
             self.canvas.create_image(259, 3, image=self.canvas.image, anchor="n")
-            self.canvas.grid(row=2, column=1, columnspan=7, rowspan=5)
+            self.canvas.grid(row=3, column=1, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
 
             #user URL validation
             self.val_bt = Button(master=self.window, text="Validate", fg="gray29", font=self.font,
                              command=self.showOptions)
-            self.val_bt.grid(row=9, column=4, sticky="NSEW")
+            self.val_bt.grid(row=10, column=4, sticky="NSEW")
 
     def clearWebsiteEntry(self, event):
         self.url_entry.delete(0, END)
@@ -89,68 +95,76 @@ class Front(object):
 
         option_row = 10
 
-        self.options = Frame(master=self.window, padx=5, pady=5, bg="gray90")
-        self.options.grid(row=option_row, column=0, rowspan=20)
+        self.options = Frame(master=self.window, padx=5, pady=5, bg="gray95")
+        self.options.grid(row=option_row, column=1, rowspan=20, columnspan=1)
 
         self.bt = Button(self.options, text="Scrape", fg="gray29", bg="gray90", relief = "raised",
                          font=self.font, command=self.executeScrape)
-        self.bt.grid(row=option_row+10, column=0)
+        self.bt.grid(row=option_row+10, column=1)
 
-        #get emails from main url page
-        self.email_cvalue = BooleanVar()
+        #get emails
+        self.all_email_cvalue = BooleanVar()
         self.email_checkbox = Checkbutton(self.options, text="Get emails", font=self.font,
                                           fg="gray29", bg="gray95", highlightbackground="gray95",
-                                          variable = self.email_cvalue)
-        self.email_checkbox.grid(row=option_row, column=0, sticky="NSW")
+                                          variable = self.all_email_cvalue)
+        self.email_checkbox.grid(row=option_row, column=2, sticky="W")
+
+        self.cpane = cp(self.options, upsidedown.transform("^"), ">")
+        self.cpane.grid(row=option_row, column=1, sticky="W", columnspan=2)
+
+        self.all_email_checkbox = Checkbutton(self.cpane, text="From the entire website", font=self.font,
+                                              fg="gray29", bg="gray95", highlightbackground="gray95",
+                                              variable=self.all_email_cvalue)
+        self.all_email_checkbox.grid(row=option_row + 1, column=3, sticky="NSW")
 
         # get linkedin urls from main url page
         self.lin_cvalue = BooleanVar()
         self.lin_checkbox = Checkbutton(self.options, text="Get linkedin URL profiles from main", font=self.font,
                                           fg="gray29", bg="gray95", highlightbackground="gray95",
                                           variable=self.lin_cvalue, command=self.linkedinMoreOptions)
-        self.lin_checkbox.grid(row=option_row+1, column=0, sticky="NSW")
+        self.lin_checkbox.grid(row=option_row+1, column=2, sticky="NSW")
 
         # get twitter urls from main url page
         self.tw_cvalue = BooleanVar()
         self.tw_checkbox = Checkbutton(self.options, text="Get twitter URL profiles from main", font=self.font,
                                         fg="gray29", bg="gray95", highlightbackground="gray95",
                                         variable=self.tw_cvalue)
-        self.tw_checkbox.grid(row=option_row + 2, column=0, sticky="NSW")
+        self.tw_checkbox.grid(row=option_row + 2, column=2, sticky="NSW")
 
         # get facebook urls from main url page
         self.fb_cvalue = BooleanVar()
         self.fb_checkbox = Checkbutton(self.options, text="Get facebook URL profiles from main", font=self.font,
                                        fg="gray29", bg="gray95", highlightbackground="gray95",
                                        variable=self.fb_cvalue)
-        self.fb_checkbox.grid(row=option_row + 3, column=0, sticky="NSW")
+        self.fb_checkbox.grid(row=option_row + 3, column=2, sticky="NSW")
 
         # get instagram profile urls from main
         self.in_cvalue = BooleanVar()
-        self.in_checkbox = Checkbutton(master=self.window, text="Get instagram URL profiles from main", font=self.font,
+        self.in_checkbox = Checkbutton(master=self.options, text="Get instagram URL profiles from main", font=self.font,
                                        fg="gray29", bg="gray95", highlightbackground="gray95",
                                        variable=self.in_cvalue)
-        self.in_checkbox.grid(row=option_row + 4, column=0, sticky="NSW")
+        self.in_checkbox.grid(row=option_row + 4, column=2, sticky="NSW")
 
         # get foreign URLs
         self.foreign_cvalue = BooleanVar()
         self.foreign_checkbox = Checkbutton(self.options, text="Get all foreign URLs", font=self.font,
                                         fg="gray29", bg="gray95", highlightbackground="gray95",
                                         variable=self.foreign_cvalue)
-        self.foreign_checkbox.grid(row=option_row + 5, column=0, sticky="NSW")
+        self.foreign_checkbox.grid(row=option_row + 5, column=2, sticky="NSW")
 
         # get all local URLs
         self.local_cvalue = BooleanVar()
         self.local_checkbox = Checkbutton(self.options, text="Get all local URLs", font=self.font,
                                          fg="gray29", bg="gray95", highlightbackground="gray95",
                                          variable=self.local_cvalue)
-        self.local_checkbox.grid(row=option_row+6, column=0, sticky="NSW")
+        self.local_checkbox.grid(row=option_row+6, column=2, sticky="NSW")
 
         # get all location urls from main
         self.geo_cvalue = BooleanVar()
         self.geo_checkbox = Checkbutton(self.options, text="Get Google Maps location coordinate URL", font=self.font,
                                          fg="gray29", bg="gray95", highlightbackground="gray95",
                                          variable=self.geo_cvalue)
-        self.geo_checkbox.grid(row=option_row+7, column=0, sticky="NSW")
+        self.geo_checkbox.grid(row=option_row+7, column=2, sticky="NSW")
 
         # get all phone numbers
         self.ph_cvalue = BooleanVar()
@@ -158,13 +172,8 @@ class Front(object):
                                         font=self.font,
                                         fg="gray29", bg="gray95", highlightbackground="gray95",
                                         variable=self.ph_cvalue)
-        self.ph_checkbox.grid(row=option_row + 8, column=0, sticky="NSW")
+        self.ph_checkbox.grid(row=option_row + 8, column=2, sticky="NSW")
 
-        self.all_email_cvalue = BooleanVar()
-        self.all_email_checkbox = Checkbutton(self.options, text="Get all emails from website", font=self.font,
-                                          fg="gray29", bg="gray95", highlightbackground="gray95",
-                                          variable=self.all_email_cvalue)
-        self.all_email_checkbox.grid(row=option_row+9, column=0, sticky="NSW")
 
     def linkedinMoreOptions(self):
         #create a new window for choosing options
