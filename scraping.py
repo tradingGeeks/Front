@@ -104,15 +104,15 @@ class Front(object):
 
         #get emails
         self.all_email_cvalue = BooleanVar()
-        self.email_checkbox = Checkbutton(self.options, text="Get emails", font=self.font,
+        self.email_checkbox = Checkbutton(self.options, text="", font=self.font,
                                           fg="gray29", bg="gray95", highlightbackground="gray95",
                                           variable = self.all_email_cvalue)
-        self.email_checkbox.grid(row=option_row, column=2, sticky="W")
+        self.email_checkbox.grid(row=option_row, column=0, sticky="W")
 
-        self.cpane = cp(self.options, upsidedown.transform("^"), ">")
+        self.cpane = cp(self.options, "Get emails", "Get emails")
         self.cpane.grid(row=option_row, column=1, sticky="W", columnspan=2)
 
-        self.all_email_checkbox = Checkbutton(self.cpane, text="From the entire website", font=self.font,
+        self.all_email_checkbox = Checkbutton(self.cpane.frame, text="From the entire website", font=self.font,
                                               fg="gray29", bg="gray95", highlightbackground="gray95",
                                               variable=self.all_email_cvalue)
         self.all_email_checkbox.grid(row=option_row + 1, column=3, sticky="NSW")
@@ -122,7 +122,7 @@ class Front(object):
         self.lin_checkbox = Checkbutton(self.options, text="Get linkedin URL profiles from main", font=self.font,
                                           fg="gray29", bg="gray95", highlightbackground="gray95",
                                           variable=self.lin_cvalue, command=self.linkedinMoreOptions)
-        self.lin_checkbox.grid(row=option_row+1, column=2, sticky="NSW")
+        self.lin_checkbox.grid(row=option_row+2, column=2, sticky="NSW")
 
         # get twitter urls from main url page
         self.tw_cvalue = BooleanVar()
