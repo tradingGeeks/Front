@@ -9,6 +9,8 @@ from time import sleep
 from urllib.parse import urlsplit, urlparse
 from collapsiblepane import CollapsiblePane as cp
 import functools
+import pandas as pd
+import sqlite3
 
 class Front(object):
     def __init__(self, window):
@@ -16,6 +18,15 @@ class Front(object):
         self.window.title("Antonio Colmenares & Chloe Martin - Automated Scraping")
         self.window.configure(background="gray95")
         self.font = ("ms serif", 16)
+        self.data = {}
+
+        #record scraping failure
+        self.db = sqlite3.connect("scraping_failure.db")
+        self.cur = self.db.cursor()
+        self.cur.execute(
+            "CREATE TABLE IF NOT EXISTS fail(id INTEGER PRIMARY KEY, element VARCHAR, s_type VARCHAR, website varchar)")
+        self.db.commit()
+        self.db.close()
 
         furthest_label_column=13
 
@@ -47,13 +58,6 @@ class Front(object):
         self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
         self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
 
-        '''
-        # user URL validation
-        self.val_bt = Button(master=self.window, text="Validate", fg="gray29", font=self.font,
-                             command=self.showOptions)
-        self.val_bt.grid(row=10, column=5, sticky="NSEW")
-        '''
-
         option_row = 10
 
         self.options = Frame(master=self.window, padx=5, pady=5, bg="gray95")
@@ -63,7 +67,6 @@ class Front(object):
         self.lb.grid(row=option_row, column=1)
 
         # get emails
-
         self.email_cvalue = BooleanVar()
         self.email_checkbox = Checkbutton(self.options, text="Get emails", font=self.font,
                                           fg="gray29", bg="gray95", highlightbackground="gray95",
@@ -103,34 +106,30 @@ class Front(object):
         self.lb.grid(row=option_row + 8, column=1)
 
         self.bt = Button(master=self.options, text="Scrape entered URL", fg="gray29", bg="gray90", relief="raised",
-                         font=self.font, command=self.mainScrape)
+                         font=self.font, command= lambda:self.executeScrape("main"))
         self.bt.grid(row=option_row + 8, column=3)
 
         self.bt = Button(master=self.options, text="Scrape entire website", fg="gray29", bg="gray90", relief="raised",
-                         font=self.font, command=self.entireScrape)
+                         font=self.font, command=lambda:self.executeScrape("entire"))
         self.bt.grid(row=option_row + 8, column=4)
-
 
         # results
         self.lb = Label(self.options, text="3", font=self.font, fg="IndianRed2", bg="gray95")
         self.lb.grid(row=option_row + 10, column=1)
 
-        self.scrollbar = Scrollbar(master=self.options, )
+        self.scrollbar = Scrollbar(master=self.options)
         self.scrollbar.grid(row=option_row + 10, column=3)
 
-        self.listbox = Listbox(master=self.options, fg="gray29", bg="gray95", font=self.font, yscrollcommand=self.scrollbar.set)
-        self.listbox.grid(row=option_row+10, column=2, columnspan=3, sticky="NSW")
-        self.scrollbar.config(bg="IndianRed2", command=self.listbox.yview)
+        self.listbox = Listbox(master=self.options, fg="gray29", bg="gray95", font=self.font,
+                               yscrollcommand=self.scrollbar.set, height=10, width=10, bd=0,
+                               highlightthickness = 0.8, highlightbackground="IndianRed2"
+                               )
+        self.listbox.grid(row=option_row+10, column=2, columnspan=3, sticky="NSWE",
+                          padx=5, pady=5, ipadx=5, ipady=5)
+        self.scrollbar.config(bg="IndianRed2", highlightbackground="gray95",
+                                   command=self.listbox.yview)
 
-
-        #view results
-        self.lb = Label(self.options, text="4", font=self.font, fg="IndianRed2", bg="gray95")
-        self.lb.grid(row=option_row + 11, column=1)
-
-        self.lb = Label(self.options, text="View", font=self.font, fg="gray29",
-                        bg="gray95", highlightbackground="gray95")
-        self.lb.grid(row=option_row + 11, column=3, sticky="NSW")
-
+        self.listbox.bind("<Double-Button-1>", self.viewScrape)
 
     def widFlash(self, event, wid):
         wid.config(highlightbackground="IndianRed2")
@@ -144,6 +143,11 @@ class Front(object):
         else:
             self.search_bt_status = True
             self.url_entry.config(state = 'disabled')
+
+            self.clear_bt = Button(self.webFrame, text="Clear All", font=self.font, fg="OliveDrab4", bg="gray95",
+                                   highlightbackground="gray95", command= self.clearAll)
+            self.clear_bt.grid(row=0, column=0)
+
             '''
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
@@ -176,9 +180,29 @@ class Front(object):
         self.url_entry.delete(0, END)
 
     def clearAll(self):
-        self.clearWebsiteEntry
-        self.search_bt_status = False
         self.url_entry.config(state='normal')
+        self.url_entry.delete(0, END)
+        self.search_bt_status = False
+        self.email_cvalue.set(False)
+        self.lin_cvalue.set(False)
+        self.foreign_cvalue.set(False)
+        self.local_cvalue.set(False)
+
+        if self.show_more==True:
+            self.lin_user_cvalue.set(False)
+            self.lin_group_cvalue.set(False)
+            self.lin_corp_cvalue.set(False)
+            self.tw_cvalue.set(False)
+            self.fb_cvalue.set(False)
+            self.in_cvalue.set(False)
+            self.geo_cvalue.set(False)
+            self.ph_cvalue.set(False)
+        self.show_more = False
+
+        try:
+            self.listbox.delete(0, END)
+        except:
+            return
 
     def exceptionAlarmHandling(self, event):
         self.window.focus_force()
@@ -224,7 +248,6 @@ class Front(object):
 
     def showMoreOptions(self):
         #create a new window for showing more scraping options
-
         self.show_more = True
 
         new_window = Toplevel()
@@ -276,69 +299,70 @@ class Front(object):
         self.bt = Button(master=new_window, text="Validate", command=new_window.destroy)
         self.bt.grid(row=2, column=1, sticky="NSW")
 
-    def mainScrape(self):
-        if self.search_bt_status == False:
-            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.search_bt))
-            return
-
-        else:
-            self.executeScrape("main")
-
-    def entireScrape(self):
-        if self.search_bt_status == False:
-            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.search_bt))
-            return
-
-        else:
-            self.executeScrape("entire")
-
     def executeScrape(self, quantity):
-        data = {}
+        if self.search_bt_status == False:
+            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.search_bt))
+            return
 
-        if self.email_cvalue.get() == True:
-            data["Emails"] = self.atSearch("email", quantity)
+        else:
+            if self.email_cvalue.get() == True:
+                self.data["Email"] = self.atSearch("email", quantity)
 
-        if self.lin_cvalue.get() == True:
-            for k in self.generalSearch("linkedin", quantity).keys():
-                data[k] = self.generalSearch("linkedin", quantity).get(k)
+            if self.lin_cvalue.get() == True:
+                temp = self.generalSearch("linkedin", quantity)
+                print(temp)
+                for key in temp.keys():
+                    self.data[key] = temp.get(key)
+                    print(self.data[key])
 
-        if self.foreign_cvalue.get() == True:
-            data["Foreign URLs"] = self.linkSearch("foreign")
+            if self.foreign_cvalue.get() == True:
+                self.data["Foreign"] = self.linkSearch("foreign")
 
-        if self.local_cvalue.get() == True:
-            data["Local URLs"] = self.linkSearch("local")
+            if self.local_cvalue.get() == True:
+                self.data["Local"] = self.linkSearch("local")
 
-        if self.show_more==True:
-            if self.tw_cvalue.get() == True:
-                data["Twitter"] = self.generalSearch("twitter", quantity)
+            if self.show_more==True:
+                if self.tw_cvalue.get() == True:
+                    self.data["Twitter"] = self.generalSearch("twitter", quantity)
 
-            if self.fb_cvalue.get() == True:
-                data["Facebook"] = self.generalSearch("facebook", quantity)
+                if self.fb_cvalue.get() == True:
+                    self.data["Facebook"] = self.generalSearch("facebook", quantity)
 
-            if self.in_cvalue.get() == True:
-                data["Instagram"] = self.generalSearch("instagram", quantity)
+                if self.in_cvalue.get() == True:
+                    self.data["Instagram"] = self.generalSearch("instagram", quantity)
 
-            if self.geo_cvalue.get() == True:
-                data["Location"] = self.atSearch("location", quantity)
+                if self.geo_cvalue.get() == True:
+                    self.data["Location"] = self.atSearch("location", quantity)
 
-            if self.ph_cvalue.get() == True:
-                data["Phones"] = self.phoneSearch(quantity)
-        print(data)
+                if self.ph_cvalue.get() == True:
+                    self.data["Phone"] = self.phoneSearch(quantity)
 
-        for d in data.keys():
-            if data.get(d) is not None:
-                var = d+"  - Success"
-                self.listbox.insert(END, var)
-                self.bt = Button(master=self.options, text="View", fg="gray29", bg="gray90",
-                                 font=self.font, command=self.viewScrapes)
-                self.bt.grid(row=20, column=4)
+            self.db = sqlite3.connect("scraping_failure.db")
+            self.cur = self.db.cursor()
 
-            elif data.get(d) is None:
-                var = d + "  - Failed"
-                self.listbox.insert(END, var)
+            print(self.data)
+            for d in self.data.keys():
+                if self.data.get(d) is None:
+                    var = d + "-  Failed"
+                    self.listbox.insert(END, var)
 
-    def viewScrapes(self):
-        pass
+                    self.cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
+                    self.db.commit()
+
+                else:
+                    if len(self.data.get(d)) == 0:
+                        var = d + "-  Failed"
+                        self.listbox.insert(END, var)
+
+                        self.cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
+                        self.db.commit()
+
+
+                    elif len(self.data.get(d)) != 0:
+                        var = d + "-  Success"
+                        self.listbox.insert(END, var)
+
+            self.db.close()
 
     def atSearch(self, search_item, quantity):
         url = []
@@ -350,7 +374,6 @@ class Front(object):
             url = self.linkSearch("local")
 
         items = []
-
         for u in url:
             try:
                 content = requests.get(u)
@@ -361,7 +384,14 @@ class Front(object):
             itemselector = soup.select('a')
 
             for each in itemselector:
-                i = each.attrs['href']
+                try:
+                    i = each.attrs['href']
+                except:
+                    try:
+                        i = each.attrs('href')
+                    except:
+                        continue
+
                 if "@" in i:
                     items.append(i)
 
@@ -379,7 +409,6 @@ class Front(object):
                         items.remove(item)
                         temp = item.split(':')
                         items.insert(email_index, temp[1])
-
         return list(set(items))
 
     def linkSearch(self, type):
@@ -404,7 +433,13 @@ class Front(object):
         path = input_url[:input_url.rfind('/')+1] if '/' in parts.path else input_url
 
         for each in itemselector:
-            href = each.attrs['href']
+            try:
+                href = each.attrs['href']
+            except:
+                try:
+                    href = each.attrs('href')
+                except:
+                    continue
 
             if href.startswith('/'): #all <a> elements with an href attribute that is a link,
                                     # but does not have the complete URL.
@@ -425,10 +460,10 @@ class Front(object):
                 foreign_links.append(href)
 
         if type=="foreign":
-            return list(set(foreign_links))
+            return(list(set(foreign_links)))
 
         elif type=="local":
-            return list(set(local_links))
+            return(list(set(local_links)))
 
     def generalSearch(self, search_item, quantity):
         url = []
@@ -454,7 +489,6 @@ class Front(object):
             for each in itemselector:
                 try:
                     i = each.attrs['href']
-
                     if search_item in i:
                         items.append(i)
                 except:
@@ -481,16 +515,26 @@ class Front(object):
                         group.append(l)
 
                 if self.lin_user_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " User"] = user
+                    items_dic[search_item.capitalize() + " User"] = list(set(user))
 
                 if self.lin_corp_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " Company"] = company
+                    items_dic[search_item.capitalize() + " Company"] = list(set(company))
 
                 if self.lin_group_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " Group"] = group
+                    items_dic[search_item.capitalize() + " Group"] = list(set(group))
 
         if search_item == 'linkedin':
-            return list(set(items_dic))
+            '''
+            none_items = []
+            for item in items_dic.keys():
+                if len(items_dic.get(item))==0:
+                    none_items.append(item)
+            if len(none_items)!=0:
+                for d in none_items:
+                    del items_dic[d]
+            '''
+            return items_dic
+
         else:
             return list(set(items))
 
@@ -504,7 +548,6 @@ class Front(object):
             url = self.linkSearch("local")
 
         phones = []
-
         for u in url:
             try:
                 content = requests.get(u)
@@ -517,7 +560,13 @@ class Front(object):
 
             a_selector = soup.select('a')
             for each in a_selector:
-                href = each.attrs['href']
+                try:
+                    href = each.attrs['href']
+                except:
+                    try:
+                        href = each.attrs('href')
+                    except:
+                        continue
 
                 for class_item in class_items:
                     if class_item in href:
@@ -532,9 +581,95 @@ class Front(object):
                     phones.append(ph)
         return list(set(phones))
 
-    def searchHelp(self):
-        pass
+    def viewScrape(self, event):
+        var = self.listbox.get(ACTIVE)
+        if "Success" not in var:
+            self.window.bell()
+            return
 
+        else:
+            # create a new window for viewing scrape
+            view_window = Toplevel(self.window)
+            view_window.geometry("500x500")
+            view_window.title(var+" - VIEW")
+            view_window.configure(background="gray95")
+
+            element = var.split("-")[0]
+            scraped = self.data.get(element)
+            df = pd.DataFrame(scraped)
+
+            self.bt = Button(master=view_window, text="Save", font=self.font, fg="gray29",
+                             bg="gray90", relief="raised", command= lambda: self.saveScrape(df, element))
+            self.bt.grid(row=0, column=0,)
+
+            self.bt = Button(master=view_window, font=self.font, fg="gray29", bg="gray90",
+                             relief="raised", text="Exit View", command=view_window.destroy)
+            self.bt.grid(row=0, column=1)
+
+            height = 0
+            width = 0
+            try:
+                width = int(len(max(scraped, key=len))/1.2)
+            except:
+                width = 25
+            if len(scraped)<20:
+                height = 25
+            elif len(scraped)<10:
+                height = 15
+            elif len(scraped)<5:
+                height = 7
+            else:
+                height = int(len(scraped)/2)
+
+            self.scrollbar_view = Scrollbar(master=view_window)
+            self.scrollbar_view.grid(column=3, row=1, rowspan=3)
+            self.data_list = Listbox(master=view_window, fg="gray29", bg="gray95", font=("ms serif", 12),
+                                     yscrollcommand=self.scrollbar_view.set, height=height, bd=0,
+                                     highlightthickness=1, highlightbackground="IndianRed2", width=width)
+
+            self.scrollbar_view.config(bg="IndianRed2", highlightbackground="gray95",
+                                       command = self.data_list.yview)
+
+            self.data_list.grid(row=2, column=0, rowspan=2, columnspan=2, sticky="NSEW",
+                                padx=5, pady=5, ipadx=5, ipady=5)
+
+            for s in scraped:
+                self.data_list.insert(END, s)
+
+    def saveScrape(self, df, element):
+        save_window = Toplevel(self.window)
+        save_window.geometry("400x200")
+        save_window.title(element+ " - SAVE")
+        save_window.configure(background="gray95")
+
+        self.save_entry = StringVar()
+        self.s_entry = Entry(master=save_window, textvariable=self.save_entry, bg="gray90", highlightbackground="gray95")
+        self.s_entry_text = "File name"
+        self.s_entry.insert(0, self.s_entry_text)
+        self.s_entry.grid(row=1, column=1, columnspan=3, sticky="NSEW", padx=3, pady=3)
+
+        self.lb = Label(master=save_window, text="Enter name of your file without extension: ",
+                        font=self.font, fg="gray17", bg="gray95")
+        self.lb.grid(row=1, column=0, sticky="NSEW", padx=3, pady=3)
+
+        self.bt = Button(master=save_window, text="Excel File", font=self.font, fg="gray29",
+                         bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get()))
+        self.bt.grid(row=2, column=3, sticky="NSEW", padx=3, pady=3)
+
+        self.bt = Button(master=save_window, text="CSV File", font=self.font, fg="gray29",
+                         bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get()))
+        self.bt.grid(row=2, column=1, sticky="NSEW", padx=3, pady=3)
+
+        self.bt = Button(master=save_window, text="Text File", font=self.font, fg="gray29",
+                         bg="gray90", relief="raised", command=lambda: self.saveBack("text", self.save_entry.get()))
+        self.bt.grid(row=2, column=2, sticky="NSEW", padx=3, pady=3)
+
+        self.bt = Button(master=save_window, font=self.font, fg="gray29", bg="gray90",
+                         relief="raised", text="Exit", command=save_window.destroy)
+        self.bt.grid(row=0, column=4)
+
+    def saveBack(self, type, name): #back end ANTONIO
+        pass
 
 window = Tk()
 front = Front(window)
