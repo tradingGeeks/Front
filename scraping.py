@@ -55,9 +55,6 @@ class Front(object):
                          font=self.font, command=self.openWebsite, highlightbackground="gray95")
         self.search_bt.grid(row=2, column=furthest_label_column, sticky="NSEW")
 
-        self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
-        self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
-
         option_row = 10
 
         self.options = Frame(master=self.window, padx=5, pady=5, bg="gray95")
@@ -148,6 +145,9 @@ class Front(object):
                                    highlightbackground="gray95", command= self.clearAll)
             self.clear_bt.grid(row=0, column=0)
 
+            self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
+            self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
+            
             '''
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
@@ -180,8 +180,10 @@ class Front(object):
         self.url_entry.delete(0, END)
 
     def clearAll(self):
+        #like a start from scratch
         self.url_entry.config(state='normal')
         self.url_entry.delete(0, END)
+        self.canvas.destroy()
         self.search_bt_status = False
         self.email_cvalue.set(False)
         self.lin_cvalue.set(False)
@@ -524,15 +526,6 @@ class Front(object):
                     items_dic[search_item.capitalize() + " Group"] = list(set(group))
 
         if search_item == 'linkedin':
-            '''
-            none_items = []
-            for item in items_dic.keys():
-                if len(items_dic.get(item))==0:
-                    none_items.append(item)
-            if len(none_items)!=0:
-                for d in none_items:
-                    del items_dic[d]
-            '''
             return items_dic
 
         else:
