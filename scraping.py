@@ -6,10 +6,9 @@ from subprocess import call
 import requests
 from bs4 import BeautifulSoup
 from time import sleep
-#import urllib.request
 from urllib.parse import urlsplit, urlparse
 from collapsiblepane import CollapsiblePane as cp
-import upsidedown
+import functools
 
 class Front(object):
     def __init__(self, window):
@@ -18,14 +17,14 @@ class Front(object):
         self.window.configure(background="gray95")
         self.font = ("ms serif", 16)
 
-        furthest_label_column=12
+        furthest_label_column=13
 
         self.exit_bt = Button(master=self.window, text="Exit", fg="black", highlightbackground='red',
                               highlightthickness=2, font=self.font, command=sys.exit)
         self.exit_bt.grid(row=0, column=furthest_label_column, sticky = "E")
 
         self.webFrame = Frame(master=self.window, padx=5, pady=5, bg="gray95")
-        self.webFrame.grid(row=1, column=1, columnspan=furthest_label_column, rowspan=2, sticky="NSEW")
+        self.webFrame.grid(row=1, column=2, columnspan=furthest_label_column, rowspan=2, sticky="NSEW")
         self.webFrame.grid_columnconfigure(0, weight=1)
         self.webFrame.grid_rowconfigure(0, weight=1)
 
@@ -40,14 +39,111 @@ class Front(object):
         self.url_entry.bind("<Button-1>", self.clearWebsiteEntry)
         self.url_entry.grid(row=2, column=0, sticky="NSEW", padx=3, ipadx=1)
 
-        self.bt = Button(self.webFrame, text="Search", fg="gray29", bg="gray90", relief = "raised",
-                         font=self.font, command=self.openWebsite)
-        self.bt.grid(row=2, column=furthest_label_column, sticky="NSEW")
+        self.search_bt_status = False
+        self.search_bt = Button(self.webFrame, text="Search", fg="gray29", bg="gray90", relief = "raised",
+                         font=self.font, command=self.openWebsite, highlightbackground="gray95")
+        self.search_bt.grid(row=2, column=furthest_label_column, sticky="NSEW")
+
+        self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
+        self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
+
+        '''
+        # user URL validation
+        self.val_bt = Button(master=self.window, text="Validate", fg="gray29", font=self.font,
+                             command=self.showOptions)
+        self.val_bt.grid(row=10, column=5, sticky="NSEW")
+        '''
+
+        option_row = 10
+
+        self.options = Frame(master=self.window, padx=5, pady=5, bg="gray95")
+        self.options.grid(row=option_row, column=1, rowspan=30, columnspan=5)
+
+        self.lb = Label(self.options, text="1", font=self.font, fg= "IndianRed2", bg="gray95")
+        self.lb.grid(row=option_row, column=1)
+
+        # get emails
+
+        self.email_cvalue = BooleanVar()
+        self.email_checkbox = Checkbutton(self.options, text="Get emails", font=self.font,
+                                          fg="gray29", bg="gray95", highlightbackground="gray95",
+                                          variable=self.email_cvalue)
+        self.email_checkbox.grid(row=option_row, column=3, sticky="NSW")
+
+        # get linkedin urls from main url page
+        self.lin_cvalue = BooleanVar()
+        self.lin_checkbox = Checkbutton(self.options, text="Get linkedin URL profiles", font=self.font,
+                                        fg="gray29", bg="gray95", highlightbackground="gray95",
+                                        variable=self.lin_cvalue, command=self.linkedinMoreOptions)
+        self.lin_checkbox.grid(row=option_row + 1, column=3, sticky="NSW")
+
+        # get foreign URLs
+        self.foreign_cvalue = BooleanVar()
+        self.foreign_checkbox = Checkbutton(self.options, text="Get all foreign URLs", font=self.font,
+                                            fg="gray29", bg="gray95", highlightbackground="gray95",
+                                            variable=self.foreign_cvalue)
+        self.foreign_checkbox.grid(row=option_row + 2, column=3, sticky="NSW")
+
+        # get all local URLs
+        self.local_cvalue = BooleanVar()
+        self.local_checkbox = Checkbutton(self.options, text="Get all local URLs", font=self.font,
+                                          fg="gray29", bg="gray95", highlightbackground="gray95",
+                                          variable=self.local_cvalue)
+        self.local_checkbox.grid(row=option_row + 3, column=3, sticky="NSW")
+
+        # show more options
+        self.show_more = False #avoid the show more options being non existing in the method executeScrape
+        self.show_bt = Button(self.options, text="Show More", font=self.font, fg="gray29", bg="gray95",
+                              highlightbackground="gray95", command=self.showMoreOptions)
+        self.show_bt.grid(row=option_row + 4, column=3, sticky="NSW", padx=5, pady=5)
+
+
+        # scraping quantity
+        self.lb = Label(self.options, text="2", font=self.font, fg="IndianRed2", bg="gray95")
+        self.lb.grid(row=option_row + 8, column=1)
+
+        self.bt = Button(master=self.options, text="Scrape entered URL", fg="gray29", bg="gray90", relief="raised",
+                         font=self.font, command=self.mainScrape)
+        self.bt.grid(row=option_row + 8, column=3)
+
+        self.bt = Button(master=self.options, text="Scrape entire website", fg="gray29", bg="gray90", relief="raised",
+                         font=self.font, command=self.entireScrape)
+        self.bt.grid(row=option_row + 8, column=4)
+
+
+        # results
+        self.lb = Label(self.options, text="3", font=self.font, fg="IndianRed2", bg="gray95")
+        self.lb.grid(row=option_row + 10, column=1)
+
+        self.scrollbar = Scrollbar(master=self.options, )
+        self.scrollbar.grid(row=option_row + 10, column=3)
+
+        self.listbox = Listbox(master=self.options, fg="gray29", bg="gray95", font=self.font, yscrollcommand=self.scrollbar.set)
+        self.listbox.grid(row=option_row+10, column=2, columnspan=3, sticky="NSW")
+        self.scrollbar.config(bg="IndianRed2", command=self.listbox.yview)
+
+
+        #view results
+        self.lb = Label(self.options, text="4", font=self.font, fg="IndianRed2", bg="gray95")
+        self.lb.grid(row=option_row + 11, column=1)
+
+        self.lb = Label(self.options, text="View", font=self.font, fg="gray29",
+                        bg="gray95", highlightbackground="gray95")
+        self.lb.grid(row=option_row + 11, column=3, sticky="NSW")
+
+
+    def widFlash(self, event, wid):
+        wid.config(highlightbackground="IndianRed2")
+        self.window.after(150, lambda: wid.config(highlightbackground="gray95"))
 
     def openWebsite(self):
         if self.url_entry.get()== self.entry_text or self.url_entry.get() == "":
+            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.url_entry))
             return
+
         else:
+            self.search_bt_status = True
+            self.url_entry.config(state = 'disabled')
             '''
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
@@ -70,285 +166,233 @@ class Front(object):
             '''
 
             #display website screenshot on canvas
-            self.canvas = Canvas(master=self.window, width=512, height=320, bg="gray95")
             screenshot = Image.open("screenshot.jpg")
-            size = 512, 320
+            size = 320, 200
             screenshot.thumbnail(size)
             self.canvas.image = ImageTk.PhotoImage(screenshot)
-
-            self.canvas.create_image(259, 3, image=self.canvas.image, anchor="n")
-            self.canvas.grid(row=3, column=1, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
-
-            #user URL validation
-            self.val_bt = Button(master=self.window, text="Validate", fg="gray29", font=self.font,
-                             command=self.showOptions)
-            self.val_bt.grid(row=10, column=4, sticky="NSEW")
+            self.canvas.create_image(164, 3, image=self.canvas.image, anchor="n")
 
     def clearWebsiteEntry(self, event):
         self.url_entry.delete(0, END)
 
     def clearAll(self):
-        pass
+        self.clearWebsiteEntry
+        self.search_bt_status = False
+        self.url_entry.config(state='normal')
 
-    def showOptions(self):
-        self.val_bt.destroy()
-
-        option_row = 10
-
-        self.options = Frame(master=self.window, padx=5, pady=5, bg="gray95")
-        self.options.grid(row=option_row, column=1, rowspan=20, columnspan=1)
-
-        self.bt = Button(self.options, text="Scrape", fg="gray29", bg="gray90", relief = "raised",
-                         font=self.font, command=self.executeScrape)
-        self.bt.grid(row=option_row+10, column=1)
-
-        #get emails
-        self.all_email_cvalue = BooleanVar()
-        self.email_checkbox = Checkbutton(self.options, text="", font=self.font,
-                                          fg="gray29", bg="gray95", highlightbackground="gray95",
-                                          variable = self.all_email_cvalue)
-        self.email_checkbox.grid(row=option_row, column=0, sticky="W")
-
-        self.cpane = cp(self.options, "Get emails", "Get emails")
-        self.cpane.grid(row=option_row, column=1, sticky="W", columnspan=2)
-
-        self.all_email_checkbox = Checkbutton(self.cpane.frame, text="From the entire website", font=self.font,
-                                              fg="gray29", bg="gray95", highlightbackground="gray95",
-                                              variable=self.all_email_cvalue)
-        self.all_email_checkbox.grid(row=option_row + 1, column=3, sticky="NSW")
-
-        # get linkedin urls from main url page
-        self.lin_cvalue = BooleanVar()
-        self.lin_checkbox = Checkbutton(self.options, text="Get linkedin URL profiles from main", font=self.font,
-                                          fg="gray29", bg="gray95", highlightbackground="gray95",
-                                          variable=self.lin_cvalue, command=self.linkedinMoreOptions)
-        self.lin_checkbox.grid(row=option_row+2, column=2, sticky="NSW")
-
-        # get twitter urls from main url page
-        self.tw_cvalue = BooleanVar()
-        self.tw_checkbox = Checkbutton(self.options, text="Get twitter URL profiles from main", font=self.font,
-                                        fg="gray29", bg="gray95", highlightbackground="gray95",
-                                        variable=self.tw_cvalue)
-        self.tw_checkbox.grid(row=option_row + 2, column=2, sticky="NSW")
-
-        # get facebook urls from main url page
-        self.fb_cvalue = BooleanVar()
-        self.fb_checkbox = Checkbutton(self.options, text="Get facebook URL profiles from main", font=self.font,
-                                       fg="gray29", bg="gray95", highlightbackground="gray95",
-                                       variable=self.fb_cvalue)
-        self.fb_checkbox.grid(row=option_row + 3, column=2, sticky="NSW")
-
-        # get instagram profile urls from main
-        self.in_cvalue = BooleanVar()
-        self.in_checkbox = Checkbutton(master=self.options, text="Get instagram URL profiles from main", font=self.font,
-                                       fg="gray29", bg="gray95", highlightbackground="gray95",
-                                       variable=self.in_cvalue)
-        self.in_checkbox.grid(row=option_row + 4, column=2, sticky="NSW")
-
-        # get foreign URLs
-        self.foreign_cvalue = BooleanVar()
-        self.foreign_checkbox = Checkbutton(self.options, text="Get all foreign URLs", font=self.font,
-                                        fg="gray29", bg="gray95", highlightbackground="gray95",
-                                        variable=self.foreign_cvalue)
-        self.foreign_checkbox.grid(row=option_row + 5, column=2, sticky="NSW")
-
-        # get all local URLs
-        self.local_cvalue = BooleanVar()
-        self.local_checkbox = Checkbutton(self.options, text="Get all local URLs", font=self.font,
-                                         fg="gray29", bg="gray95", highlightbackground="gray95",
-                                         variable=self.local_cvalue)
-        self.local_checkbox.grid(row=option_row+6, column=2, sticky="NSW")
-
-        # get all location urls from main
-        self.geo_cvalue = BooleanVar()
-        self.geo_checkbox = Checkbutton(self.options, text="Get Google Maps location coordinate URL", font=self.font,
-                                         fg="gray29", bg="gray95", highlightbackground="gray95",
-                                         variable=self.geo_cvalue)
-        self.geo_checkbox.grid(row=option_row+7, column=2, sticky="NSW")
-
-        # get all phone numbers
-        self.ph_cvalue = BooleanVar()
-        self.ph_checkbox = Checkbutton(self.options, text="Get phone numbers",
-                                        font=self.font,
-                                        fg="gray29", bg="gray95", highlightbackground="gray95",
-                                        variable=self.ph_cvalue)
-        self.ph_checkbox.grid(row=option_row + 8, column=2, sticky="NSW")
-
+    def exceptionAlarmHandling(self, event):
+        self.window.focus_force()
+        self.window.bell()
 
     def linkedinMoreOptions(self):
-        #create a new window for choosing options
+        if self.lin_cvalue.get() == False:
+            return
+        else:
+            # create a new window for choosing options
+            new_window = Toplevel(self.window)
+            new_window.geometry("330x130")
+            new_window.title("Linkedin Scrape Options")
+            new_window.bind("<FocusOut>", self.exceptionAlarmHandling)
+            new_window.configure(background="gray95")
+
+            self.lb = Label(master=new_window, text="Choose the type of linkedin profile: ", font=self.font,
+                            fg = "gray17", bg="gray95")
+            self.lb.grid(row=0, column=0, sticky="NSEW")
+
+            # options
+            self.lin_user_cvalue = BooleanVar()
+            self.lin_user = Checkbutton(master=new_window, text="Get user profiles", font=self.font,
+                                        fg="gray29", bg="gray95", highlightbackground="gray95",
+                                        variable=self.lin_user_cvalue)
+            self.lin_user.grid(row=1, column=0, sticky="NSW")
+
+            self.lin_corp_cvalue = BooleanVar()
+            self.lin_corp = Checkbutton(master=new_window, text="Get corporation profiles", font=self.font,
+                                        fg="gray29", bg="gray95", highlightbackground="gray95",
+                                        variable=self.lin_corp_cvalue)
+            self.lin_corp.grid(row=2, column=0, sticky="NSW")
+
+            self.lin_group_cvalue = BooleanVar()
+            self.lin_group = Checkbutton(master=new_window, text="Get group profiles", font=self.font,
+                                        fg="gray29", bg="gray95", highlightbackground="gray95",
+                                         variable=self.lin_group_cvalue)
+            self.lin_group.grid(row=3, column=0, sticky="NSW")
+
+            #return to main window
+            self.bt = Button(master=new_window, text="Validate", command=new_window.destroy)
+            self.bt.grid(row=2, column=1, sticky="NSW")
+
+    def showMoreOptions(self):
+        #create a new window for showing more scraping options
+
+        self.show_more = True
+
         new_window = Toplevel()
         new_window.geometry("400x300")
-        new_window.title("Linkedin Scrape Options")
+        new_window.title("More Scraping Options")
         new_window.configure(background="gray95")
 
-        self.lb = Label(master=new_window, text="Choose the type of linkedin profile: ", font=self.font,
-                        fg = "gray17", bg="gray95")
+        self.lb = Label(master=new_window, text="More Scraping Options: ", font=self.font,
+                        fg="gray17", bg="gray95")
         self.lb.grid(row=0, column=0, sticky="NSEW")
 
-        # options
-        self.lin_user_cvalue = BooleanVar()
-        self.lin_user = Checkbutton(master=new_window, text="Get user profiles", font=self.font,
-                                    fg="gray29", bg="gray95", highlightbackground="gray95",
-                                    variable=self.lin_user_cvalue)
-        self.lin_user.grid(row=1, column=0, sticky="NSW")
+        # twitter
+        self.tw_cvalue = BooleanVar()
+        self.tw_checkbox = Checkbutton(master=new_window, text="Get twitter URLs", font=self.font,
+                                       fg="gray29", bg="gray95", highlightbackground="gray95",
+                                       variable=self.tw_cvalue)
+        self.tw_checkbox.grid(row=1, column=0, sticky="NSW")
 
-        self.lin_corp_cvalue = BooleanVar()
-        self.lin_corp = Checkbutton(master=new_window, text="Get corporation profiles", font=self.font,
-                                    fg="gray29", bg="gray95", highlightbackground="gray95",
-                                    variable=self.lin_corp_cvalue)
-        self.lin_corp.grid(row=2, column=0, sticky="NSW")
+        # facebook
+        self.fb_cvalue = BooleanVar()
+        self.fb_checkbox = Checkbutton(master=new_window, text="Get facebook URLs", font=self.font,
+                                       fg="gray29", bg="gray95", highlightbackground="gray95",
+                                       variable=self.fb_cvalue)
+        self.fb_checkbox.grid(row=2, column=0, sticky="NSW")
 
-        self.lin_group_cvalue = BooleanVar()
-        self.lin_group = Checkbutton(master=new_window, text="Get group profiles", font=self.font,
-                                    fg="gray29", bg="gray95", highlightbackground="gray95",
-                                     variable=self.lin_group_cvalue)
-        self.lin_group.grid(row=3, column=0, sticky="NSW")
+        # instagram
+        self.in_cvalue = BooleanVar()
+        self.in_checkbox = Checkbutton(master=new_window, text="Get instagram URLs", font=self.font,
+                                       fg="gray29", bg="gray95", highlightbackground="gray95",
+                                       variable=self.in_cvalue)
+        self.in_checkbox.grid(row=3, column=0, sticky="NSW")
 
-        #return to main window
+        # get all location urls
+        self.geo_cvalue = BooleanVar()
+        self.geo_checkbox = Checkbutton(master=new_window, text="Get Google Maps location coordinate URL", font=self.font,
+                                        fg="gray29", bg="gray95", highlightbackground="gray95",
+                                        variable=self.geo_cvalue)
+        self.geo_checkbox.grid(row=4, column=0, sticky="NSW")
+
+        # phone numbers
+        self.ph_cvalue = BooleanVar()
+        self.ph_checkbox = Checkbutton(master=new_window, text="Get phone numbers",
+                                       font=self.font,
+                                       fg="gray29", bg="gray95", highlightbackground="gray95",
+                                       variable=self.ph_cvalue)
+        self.ph_checkbox.grid(row=5, column=0, sticky="NSW")
+
+        # return to main window
         self.bt = Button(master=new_window, text="Validate", command=new_window.destroy)
         self.bt.grid(row=2, column=1, sticky="NSW")
 
-    def executeScrape(self):
-        '''
-        email = []
-        linkedin = []
-        twitter = []
-        facebook = []
-        urls = []
-        href = []
-        all_email = []
-        '''
+    def mainScrape(self):
+        if self.search_bt_status == False:
+            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.search_bt))
+            return
 
-        if self.email_cvalue.get()==True:
-            self.atSearch("email")
+        else:
+            self.executeScrape("main")
+
+    def entireScrape(self):
+        if self.search_bt_status == False:
+            self.window.bind("<Button-1>", functools.partial(self.widFlash, wid=self.search_bt))
+            return
+
+        else:
+            self.executeScrape("entire")
+
+    def executeScrape(self, quantity):
+        data = {}
+
+        if self.email_cvalue.get() == True:
+            data["Emails"] = self.atSearch("email", quantity)
 
         if self.lin_cvalue.get() == True:
-            self.generalSearch("linkedin")
-
-        if self.tw_cvalue.get() == True:
-            self.generalSearch("twitter")
-
-        if self.fb_cvalue.get() == True:
-            self.generalSearch("facebook")
-
-        if self.in_cvalue.get() == True:
-            self.generalSearch("instagram")
+            for k in self.generalSearch("linkedin", quantity).keys():
+                data[k] = self.generalSearch("linkedin", quantity).get(k)
 
         if self.foreign_cvalue.get() == True:
-            self.linkSearch("foreign")
+            data["Foreign URLs"] = self.linkSearch("foreign")
 
         if self.local_cvalue.get() == True:
-            self.linkSearch("local")
+            data["Local URLs"] = self.linkSearch("local")
 
-        if self.geo_cvalue.get() == True:
-            self.atSearch("location")
+        if self.show_more==True:
+            if self.tw_cvalue.get() == True:
+                data["Twitter"] = self.generalSearch("twitter", quantity)
 
-        if self.ph_cvalue.get() == True:
-            self.phoneSearch()
+            if self.fb_cvalue.get() == True:
+                data["Facebook"] = self.generalSearch("facebook", quantity)
 
-    def atSearch(self, search_item):
+            if self.in_cvalue.get() == True:
+                data["Instagram"] = self.generalSearch("instagram", quantity)
+
+            if self.geo_cvalue.get() == True:
+                data["Location"] = self.atSearch("location", quantity)
+
+            if self.ph_cvalue.get() == True:
+                data["Phones"] = self.phoneSearch(quantity)
+        print(data)
+
+        for d in data.keys():
+            if data.get(d) is not None:
+                var = d+"  - Success"
+                self.listbox.insert(END, var)
+                self.bt = Button(master=self.options, text="View", fg="gray29", bg="gray90",
+                                 font=self.font, command=self.viewScrapes)
+                self.bt.grid(row=20, column=4)
+
+            elif data.get(d) is None:
+                var = d + "  - Failed"
+                self.listbox.insert(END, var)
+
+    def viewScrapes(self):
+        pass
+
+    def atSearch(self, search_item, quantity):
+        url = []
+
+        if quantity=="main":
+            url.append(self.url_entry.get())
+
+        elif quantity=="entire":
+            url = self.linkSearch("local")
+
         items = []
 
-        content = requests.get(self.url_entry.get())
-        soup = BeautifulSoup(content.text, 'lxml')
-        itemselector = soup.select('a')
+        for u in url:
+            try:
+                content = requests.get(u)
+                soup = BeautifulSoup(content.text, 'lxml')
+            except:
+                return #???????
 
-        for each in itemselector:
-            i = each.attrs['href']
-            if "@" in i:
-                items.append(i)
+            itemselector = soup.select('a')
 
-        for item in items:
-            if search_item=='location':
-                if 'google' and 'maps' not in item:
-                    items.remove(item)
-            elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
-                if 'google.com/maps/place' in item:
-                    items.remove(item)
+            for each in itemselector:
+                i = each.attrs['href']
+                if "@" in i:
+                    items.append(i)
 
-                # only keep emails (with no "mailto:" text at the beginning)
-                if 'mailto:' in item:
-                    email_index = items.index(item)
-                    items.remove(item)
-                    temp = item.split(':')
-                    items.insert(email_index, temp[1])
+            for item in items:
+                if search_item=='location':
+                    if 'google' and 'maps' not in item:
+                        items.remove(item)
+                elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
+                    if 'google.com/maps/place' in item:
+                        items.remove(item)
 
-    def generalSearch(self, search_item):
-        items = []
-        items_dic = {}
+                    # only keep emails (with no "mailto:" text at the beginning)
+                    if 'mailto:' in item:
+                        email_index = items.index(item)
+                        items.remove(item)
+                        temp = item.split(':')
+                        items.insert(email_index, temp[1])
 
-        content = requests.get(self.url_entry.get())
-        soup = BeautifulSoup(content.text, 'lxml')
-        itemselector = soup.select('a')
-
-        for each in itemselector:
-            i = each.attrs['href']
-            if search_item in i:
-                items.append(i)
-
-        if search_item=='linkedin':
-            # check and save type of linkedin profile
-            for l in items:
-                if self.lin_user_cvalue.get() == True:
-                    if '/in/' in l:
-                        items_dic = {search_item.capitalize()+" User": l}
-                if self.lin_corp_cvalue.get() == True:
-                    if '/company/' in l:
-                        items_dic = {search_item.capitalize()+"Company": l}
-                if self.lin_group_cvalue.get() == True:
-                    if '/groups/' in l:
-                        items_dic = {search_item.capitalize()+"Group": l}
-
-            return items_dic
-
-        print(items)
-        return items
-
-    def phoneSearch(self):
-        phones = []
-
-        content = requests.get(self.url_entry.get())
-        soup = BeautifulSoup(content.text, 'lxml')
-
-        #Select phone number by common used class names for showing phones
-        class_items = ['tel', 'phone']
-
-        a_selector = soup.select('a')
-        for each in a_selector:
-            href = each.attrs['href']
-
-            for class_item in class_items:
-                if class_item in href:
-                    phones.append(href)
-
-        #p_selector = soup.select('p')
-        for class_item in class_items:
-            p_selector = soup.select('p.'+class_item)
-
-            for each in p_selector:
-                ph= each.text
-                phones.append(ph)
-
-        print(phones)
-
-        '''
-        area_code = 43
-        with urllib.request.urlopen(self.url_entry.get()) as open_website:
-            content = open_website.read().decode('utf-8')
-        phones = re.findall(r"\+\d{2}\s?0?\d{10}", content)
-        phones2 = re.compile()
-        #phones2 = re.findall(r"(?:1[-.])*(?[2-9]\d{2})?[-. ]\d{3}[-. ]\d{4}", content)
-        print(phones, phones2)
-        '''
+        return list(set(items))
 
     def linkSearch(self, type):
         local_links = []
         foreign_links = []
 
         input_url = self.url_entry.get()
-        content = requests.get(input_url)
-        soup = BeautifulSoup(content.text, 'lxml')
+        try:
+            content = requests.get(input_url)
+            soup = BeautifulSoup(content.text, 'lxml')
+
+        except:
+            return #???
         itemselector = soup.select('a')
 
         #get base URL of website - code partially copied and adapted from
@@ -381,15 +425,112 @@ class Front(object):
                 foreign_links.append(href)
 
         if type=="foreign":
-            print(foreign_links)
-            return foreign_links
+            return list(set(foreign_links))
 
         elif type=="local":
-            print(local_links)
-            return local_links
+            return list(set(local_links))
 
-    def searchAllEmails(self):
-        pass
+    def generalSearch(self, search_item, quantity):
+        url = []
+
+        if quantity == "main":
+            url.append(self.url_entry.get())
+
+        elif quantity == "entire":
+            url = self.linkSearch("local")
+
+        items = []
+        items_dic = {}
+
+        for u in range(len(url)):
+            try:
+                content = requests.get(url[u])
+                soup = BeautifulSoup(content.text, 'lxml')
+            except:
+                return #???
+
+            itemselector = soup.select('a')
+
+            for each in itemselector:
+                try:
+                    i = each.attrs['href']
+
+                    if search_item in i:
+                        items.append(i)
+                except:
+                    try:
+                        i = each.attrs('href')
+                        if search_item in i:
+                            items.append(i)
+                    except:
+                        continue
+
+            if search_item=='linkedin':
+                # check and save type of linkedin profile
+                user = []
+                company = []
+                group = []
+                for l in items:
+                    if '/in/' in l:
+                        user.append(l)
+
+                    if '/company/' in l:
+                        company.append(l)
+
+                    if '/groups/' in l:
+                        group.append(l)
+
+                if self.lin_user_cvalue.get() == True:
+                    items_dic[search_item.capitalize() + " User"] = user
+
+                if self.lin_corp_cvalue.get() == True:
+                    items_dic[search_item.capitalize() + " Company"] = company
+
+                if self.lin_group_cvalue.get() == True:
+                    items_dic[search_item.capitalize() + " Group"] = group
+
+        if search_item == 'linkedin':
+            return list(set(items_dic))
+        else:
+            return list(set(items))
+
+    def phoneSearch(self, quantity):
+        url = []
+
+        if quantity == "main":
+            url.append(self.url_entry.get())
+
+        elif quantity == "entire":
+            url = self.linkSearch("local")
+
+        phones = []
+
+        for u in url:
+            try:
+                content = requests.get(u)
+                soup = BeautifulSoup(content.text, 'lxml')
+            except:
+                return #?????
+
+            #Select phone number by common used class names for showing phones
+            class_items = ['tel', 'phone']
+
+            a_selector = soup.select('a')
+            for each in a_selector:
+                href = each.attrs['href']
+
+                for class_item in class_items:
+                    if class_item in href:
+                        phones.append(href)
+
+            #p_selector = soup.select('p')
+            for class_item in class_items:
+                p_selector = soup.select('p.'+class_item)
+
+                for each in p_selector:
+                    ph= each.text
+                    phones.append(ph)
+        return list(set(phones))
 
     def searchHelp(self):
         pass
@@ -398,10 +539,3 @@ class Front(object):
 window = Tk()
 front = Front(window)
 window.mainloop()
-
-'''
-        #show complete URL
-        url_label = "URL: "+self.url_entry.get()
-        self.lb = Label(master=self.window, text=url_label, font=self.font, fg="gray29", bg="gray95")
-        self.lb.grid(row=9, column=1, sticky="W")
-'''
