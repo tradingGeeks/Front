@@ -10,6 +10,7 @@ from urllib.parse import urlsplit, urlparse
 import functools
 import pandas as pd
 import sqlite3
+import xlsxwriter
 
 class Front(object):
     def __init__(self, window):
@@ -397,7 +398,7 @@ class Front(object):
             url = self.linkSearch("local")
 
         items = []
-        if len(url) ==0:
+        if len(url) ==0 or url is None:
             return items
 
         else:
@@ -508,7 +509,7 @@ class Front(object):
         items = []
         items_dic = {}
 
-        if len(url) ==0:
+        if len(url) ==0 or url is None:
             if search_item == "linkedin":
                 return items_dic
             else:
@@ -575,7 +576,7 @@ class Front(object):
             url = self.linkSearch("local")
 
         phones = []
-        if len(url) ==0:
+        if len(url) ==0 or url is None:
             return phones
 
         else:
@@ -699,23 +700,22 @@ class Front(object):
                          bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get(), df))
         self.bt.grid(row=2, column=1, sticky="NSEW", padx=3, pady=3)
 
-        self.bt = Button(master=save_window, text="Text File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command=lambda: self.saveBack("text", self.save_entry.get(), df))
-        self.bt.grid(row=2, column=2, sticky="NSEW", padx=3, pady=3)
-
         self.bt = Button(master=save_window, font=self.font, fg="gray29", bg="gray90",
                          relief="raised", text="Exit", command=save_window.destroy)
         self.bt.grid(row=0, column=4)
 
     def saveBack(self, type, name, df): #back end ANTONIO
-        file = name+".csv"
         result = ""
         if type =="csv":
+            file = name + ".csv"
             try:
                 df.to_csv(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
                 result = "Correctly Saved"
             except:
                 result = "Something went wrong when saving..."
+        elif type == "excel":
+            file = name + ".xlsx"
+            df.to_excel(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
         pass
 
 window = Tk()
