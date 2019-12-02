@@ -21,12 +21,12 @@ class Front(object):
         self.data = {}
 
         #record scraping failure
-        self.db = sqlite3.connect("scraping_failure.db")
-        self.cur = self.db.cursor()
-        self.cur.execute(
+        db = sqlite3.connect("scraping_failure.db")
+        cur = db.cursor()
+        cur.execute(
             "CREATE TABLE IF NOT EXISTS fail(id INTEGER PRIMARY KEY, element VARCHAR, s_type VARCHAR, website varchar)")
-        self.db.commit()
-        self.db.close()
+        db.commit()
+        db.close()
 
         furthest_label_column=13
 
@@ -147,7 +147,7 @@ class Front(object):
 
             self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
             self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
-            
+
             '''
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
@@ -183,12 +183,14 @@ class Front(object):
         #like a start from scratch
         self.url_entry.config(state='normal')
         self.url_entry.delete(0, END)
+        self.url.set("")
         self.canvas.destroy()
         self.search_bt_status = False
         self.email_cvalue.set(False)
         self.lin_cvalue.set(False)
         self.foreign_cvalue.set(False)
         self.local_cvalue.set(False)
+        self.data = {}
 
         if self.show_more==True:
             self.lin_user_cvalue.set(False)
@@ -216,7 +218,7 @@ class Front(object):
         else:
             # create a new window for choosing options
             new_window = Toplevel(self.window)
-            new_window.geometry("330x130")
+            new_window.geometry("330x108")
             new_window.title("Linkedin Scrape Options")
             new_window.bind("<FocusOut>", self.exceptionAlarmHandling)
             new_window.configure(background="gray95")
@@ -312,10 +314,8 @@ class Front(object):
 
             if self.lin_cvalue.get() == True:
                 temp = self.generalSearch("linkedin", quantity)
-                print(temp)
                 for key in temp.keys():
                     self.data[key] = temp.get(key)
-                    print(self.data[key])
 
             if self.foreign_cvalue.get() == True:
                 self.data["Foreign"] = self.linkSearch("foreign")
@@ -339,32 +339,31 @@ class Front(object):
                 if self.ph_cvalue.get() == True:
                     self.data["Phone"] = self.phoneSearch(quantity)
 
-            self.db = sqlite3.connect("scraping_failure.db")
-            self.cur = self.db.cursor()
+            db = sqlite3.connect("scraping_failure.db")
+            cur = db.cursor()
 
-            print(self.data)
             for d in self.data.keys():
                 if self.data.get(d) is None:
                     var = d + "-  Failed"
                     self.listbox.insert(END, var)
 
-                    self.cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
-                    self.db.commit()
+                    cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
+                    db.commit()
 
                 else:
                     if len(self.data.get(d)) == 0:
                         var = d + "-  Failed"
                         self.listbox.insert(END, var)
 
-                        self.cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
-                        self.db.commit()
+                        cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
+                        db.commit()
 
 
                     elif len(self.data.get(d)) != 0:
                         var = d + "-  Success"
                         self.listbox.insert(END, var)
 
-            self.db.close()
+            db.close()
 
     def atSearch(self, search_item, quantity):
         url = []
@@ -377,11 +376,12 @@ class Front(object):
 
         items = []
         for u in url:
+            print(url.index(u), u)
             try:
                 content = requests.get(u)
                 soup = BeautifulSoup(content.text, 'lxml')
             except:
-                return #???????
+                continue
 
             itemselector = soup.select('a')
 
@@ -396,21 +396,24 @@ class Front(object):
 
                 if "@" in i:
                     items.append(i)
+                    print("@ --->", i)
 
-            for item in items:
-                if search_item=='location':
-                    if 'google' and 'maps' not in item:
-                        items.remove(item)
-                elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
-                    if 'google.com/maps/place' in item:
-                        items.remove(item)
+        for item in items:
+            print(items.index(item), item)
+            if search_item=='location':
+                if '/maps/' not in item:
+                    items.remove(item)
+            elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
+                if '/maps/' in item:
+                    items.remove(item)
 
-                    # only keep emails (with no "mailto:" text at the beginning)
-                    if 'mailto:' in item:
-                        email_index = items.index(item)
-                        items.remove(item)
-                        temp = item.split(':')
-                        items.insert(email_index, temp[1])
+                # only keep emails (with no "mailto:" text at the beginning)
+                if 'mailto:' in item:
+                    email_index = items.index(item)
+                    items.remove(item)
+                    temp = item.split(':')
+                    items.insert(email_index, temp[1])
+        print(list(set(items)))
         return list(set(items))
 
     def linkSearch(self, type):
@@ -423,7 +426,7 @@ class Front(object):
             soup = BeautifulSoup(content.text, 'lxml')
 
         except:
-            return #???
+            return
         itemselector = soup.select('a')
 
         #get base URL of website - code partially copied and adapted from
@@ -484,7 +487,7 @@ class Front(object):
                 content = requests.get(url[u])
                 soup = BeautifulSoup(content.text, 'lxml')
             except:
-                return #???
+                return
 
             itemselector = soup.select('a')
 
@@ -527,7 +530,6 @@ class Front(object):
 
         if search_item == 'linkedin':
             return items_dic
-
         else:
             return list(set(items))
 
@@ -546,10 +548,10 @@ class Front(object):
                 content = requests.get(u)
                 soup = BeautifulSoup(content.text, 'lxml')
             except:
-                return #?????
+                return
 
             #Select phone number by common used class names for showing phones
-            class_items = ['tel', 'phone']
+            class_items = ['tel', 'Tel', 'phone', 'Phone',]
 
             a_selector = soup.select('a')
             for each in a_selector:
@@ -600,17 +602,13 @@ class Front(object):
             self.bt.grid(row=0, column=1)
 
             height = 0
-            width = 0
-            try:
-                width = int(len(max(scraped, key=len))/1.2)
-            except:
-                width = 25
+            width = 30
             if len(scraped)<20:
                 height = 25
             elif len(scraped)<10:
                 height = 15
             elif len(scraped)<5:
-                height = 7
+                height = 6
             else:
                 height = int(len(scraped)/2)
 
@@ -631,7 +629,7 @@ class Front(object):
 
     def saveScrape(self, df, element):
         save_window = Toplevel(self.window)
-        save_window.geometry("400x200")
+        save_window.geometry("800x200")
         save_window.title(element+ " - SAVE")
         save_window.configure(background="gray95")
 
@@ -646,22 +644,30 @@ class Front(object):
         self.lb.grid(row=1, column=0, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="Excel File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get()))
+                         bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get(), df))
         self.bt.grid(row=2, column=3, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="CSV File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get()))
+                         bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get(), df))
         self.bt.grid(row=2, column=1, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="Text File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command=lambda: self.saveBack("text", self.save_entry.get()))
+                         bg="gray90", relief="raised", command=lambda: self.saveBack("text", self.save_entry.get(), df))
         self.bt.grid(row=2, column=2, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, font=self.font, fg="gray29", bg="gray90",
                          relief="raised", text="Exit", command=save_window.destroy)
         self.bt.grid(row=0, column=4)
 
-    def saveBack(self, type, name): #back end ANTONIO
+    def saveBack(self, type, name, df): #back end ANTONIO
+        file = name+".csv"
+        result = ""
+        if type =="csv":
+            try:
+                df.to_csv(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
+                result = "Correctly Saved"
+            except:
+                result = "Something went wrong when saving..."
         pass
 
 window = Tk()
