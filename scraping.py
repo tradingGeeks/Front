@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from time import sleep
 from urllib.parse import urlsplit, urlparse
-from collapsiblepane import CollapsiblePane as cp
 import functools
 import pandas as pd
 import sqlite3
@@ -510,56 +509,62 @@ class Front(object):
         items = []
         items_dic = {}
 
-        for u in range(len(url)):
-            try:
-                content = requests.get(url[u])
-                soup = BeautifulSoup(content.text, 'lxml')
-            except:
-                continue
-
-            itemselector = soup.select('a')
-
-            for each in itemselector:
+        if len(url) ==0:
+            if search_item == "linkedin":
+                return items_dic
+            else:
+                return items
+        else:
+            for u in range(len(url)):
                 try:
-                    i = each.attrs['href']
-                    if search_item in i:
-                        items.append(i)
+                    content = requests.get(url[u])
+                    soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    continue
+
+                itemselector = soup.select('a')
+
+                for each in itemselector:
                     try:
-                        i = each.attrs('href')
+                        i = each.attrs['href']
                         if search_item in i:
                             items.append(i)
                     except:
-                        continue
+                        try:
+                            i = each.attrs('href')
+                            if search_item in i:
+                                items.append(i)
+                        except:
+                            continue
 
-            if search_item=='linkedin':
-                # check and save type of linkedin profile
-                user = []
-                company = []
-                group = []
-                for l in items:
-                    if '/in/' in l:
-                        user.append(l)
+                if search_item=='linkedin':
+                    # check and save type of linkedin profile
+                    user = []
+                    company = []
+                    group = []
+                    for l in items:
+                        if '/in/' in l:
+                            user.append(l)
 
-                    if '/company/' in l:
-                        company.append(l)
+                        if '/company/' in l:
+                            company.append(l)
 
-                    if '/groups/' in l:
-                        group.append(l)
+                        if '/groups/' in l:
+                            group.append(l)
 
-                if self.lin_user_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " User"] = list(set(user))
+                    if self.lin_user_cvalue.get() == True:
+                        items_dic[search_item.capitalize() + " User"] = list(set(user))
 
-                if self.lin_corp_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " Company"] = list(set(company))
+                    if self.lin_corp_cvalue.get() == True:
+                        items_dic[search_item.capitalize() + " Company"] = list(set(company))
 
-                if self.lin_group_cvalue.get() == True:
-                    items_dic[search_item.capitalize() + " Group"] = list(set(group))
+                    if self.lin_group_cvalue.get() == True:
+                        items_dic[search_item.capitalize() + " Group"] = list(set(group))
 
-        if search_item == 'linkedin':
-            return items_dic
-        else:
-            return list(set(items))
+            if search_item == 'linkedin':
+                return items_dic
+            else:
+                return list(set(items))
 
     def phoneSearch(self, quantity):
         url = []
@@ -571,50 +576,54 @@ class Front(object):
             url = self.linkSearch("local")
 
         phones = []
-        for u in url:
-            print(url.index(u), u)
-            try:
-                content = requests.get(u)
-                soup = BeautifulSoup(content.text, 'lxml')
-            except:
-                continue
+        if len(url) ==0:
+            return phones
 
-            #Select phone number by common used class names for showing phones
-            class_items = ['tel', 'Tel', 'phone', 'Phone', 'call', 'Call']
-
-            a_selector = soup.select('a')
-            for each in a_selector:
+        else:
+            for u in url:
+                print(url.index(u), u)
                 try:
-                    href = each.attrs['href']
+                    content = requests.get(u)
+                    soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    continue
+
+                #Select phone number by common used class names for showing phones
+                class_items = ['tel', 'Tel', 'phone', 'Phone', 'call', 'Call']
+
+                a_selector = soup.select('a')
+                for each in a_selector:
                     try:
-                        href = each.attrs('href')
+                        href = each.attrs['href']
                     except:
-                        continue
+                        try:
+                            href = each.attrs('href')
+                        except:
+                            continue
 
+                    for class_item in class_items:
+                        if class_item in href:
+                            print(class_item, "--->", href)
+                            phones.append(href)
+
+                #p_selector = soup.select('p')
                 for class_item in class_items:
-                    if class_item in href:
-                        print(class_item, "--->", href)
-                        phones.append(href)
+                    p_selector = soup.select('p.'+class_item)
+                    for each in p_selector:
+                        ph= each.text
+                        print("PH", ph)
+                        phones.append(ph)
 
-            #p_selector = soup.select('p')
-            for class_item in class_items:
-                p_selector = soup.select('p.'+class_item)
-                for each in p_selector:
-                    ph= each.text
-                    print("PH", ph)
-                    phones.append(ph)
-
-        '''
-        temp = ""
-        for p in phones:
-            for letter in p:
-                if not(letter.isalpha()):
-                    temp+=letter
-        phones = temp
-        print(phones)
-        '''
-        return list(set(phones))
+            '''
+            temp = ""
+            for p in phones:
+                for letter in p:
+                    if not(letter.isalpha()):
+                        temp+=letter
+            phones = temp
+            print(phones)
+            '''
+            return list(set(phones))
 
     def viewScrape(self, event):
         var = self.listbox.get(ACTIVE)
