@@ -11,6 +11,7 @@ import functools
 import pandas as pd
 import sqlite3
 import xlsxwriter
+import re
 
 class Front(object):
     def __init__(self, window):
@@ -602,6 +603,7 @@ class Front(object):
                 class_items = ['tel', 'Tel', 'phone', 'Phone', 'call', 'Call']
 
                 a_selector = soup.select('a')
+
                 for each in a_selector:
                     try:
                         href = each.attrs['href']
@@ -616,13 +618,14 @@ class Front(object):
                             print(class_item, "--->", href)
                             phones.append(href)
 
-                #p_selector = soup.select('p')
+                p_selector = soup.select('p')
                 for class_item in class_items:
                     p_selector = soup.select('p.'+class_item)
                     for each in p_selector:
                         ph= each.text
                         print("PH", ph)
                         phones.append(ph)
+
 
             '''
             temp = ""
