@@ -1,7 +1,6 @@
 from tkinter import *
 from PIL import ImageTk, Image
 from selenium import webdriver
-from bs4 import BeautifulSoup as bs
 from subprocess import call
 import requests
 from bs4 import BeautifulSoup
@@ -11,6 +10,7 @@ import functools
 import pandas as pd
 import sqlite3
 import xlsxwriter
+import getpass
 
 class Front(object):
     def __init__(self, window):
@@ -19,6 +19,13 @@ class Front(object):
         self.window.configure(background="gray95")
         self.font = ("ms serif", 16)
         self.data = {}
+
+        if getpass.getuser() == 'acolmena26':
+            self.chromedriver_path = '/Users/acolmena26/Downloads/chromedriver'
+        elif 'chloe' in getpass.getuser():
+            self.chromedriver_path = '/Users/chloemartin/Downloads/chromedriver 2'
+        else:
+            self.chromedriver_path = input("Enter path of chrome driver installation: ")
 
         #record scraping failure
         db = sqlite3.connect("scraping_failure.db")
@@ -153,7 +160,7 @@ class Front(object):
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_experimental_option("excludeSwitches", ['enable-automation'])
             chrome_options.add_argument("--kiosk")
-            browser = webdriver.Chrome('/Users/chloemartin/Downloads/chromedriver 2', options=chrome_options)
+            browser = webdriver.Chrome(self.chromedriver_path, options=chrome_options)
     
             try:
                 browser.get(self.url_entry.get())
@@ -271,7 +278,6 @@ class Front(object):
             #return to main window
             self.bt = Button(master=new_window, text="Validate", command=new_window.destroy)
             self.bt.grid(row=2, column=1, sticky="NSW")
-            print("BORRAR EST")
 
     def showMoreOptions(self):
         #create a new window for showing more scraping options
@@ -408,6 +414,7 @@ class Front(object):
                     content = requests.get(u)
                     soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    print("no successful soup parser")
                     continue
 
                 itemselector = soup.select('a')
@@ -451,9 +458,9 @@ class Front(object):
         try:
             content = requests.get(input_url)
             soup = BeautifulSoup(content.text, 'lxml')
-
         except:
-            return
+            print("no successful soup parser")
+            continue
         itemselector = soup.select('a')
 
         #get base URL of website - code partially copied and adapted from
@@ -509,7 +516,7 @@ class Front(object):
         items = []
         items_dic = {}
 
-        if len(url) ==0 or url is None:
+        if url is None:
             if search_item == "linkedin":
                 return items_dic
             else:
@@ -520,6 +527,7 @@ class Front(object):
                     content = requests.get(url[u])
                     soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    print("no successful soup parser")
                     continue
 
                 itemselector = soup.select('a')
@@ -586,6 +594,7 @@ class Front(object):
                     content = requests.get(u)
                     soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    print("no successful soup parser")
                     continue
 
                 #Select phone number by common used class names for showing phones
