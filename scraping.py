@@ -10,11 +10,9 @@ import functools
 import pandas as pd
 import sqlite3
 import xlsxwriter
-<<<<<<< HEAD
 import re
-=======
 import getpass
->>>>>>> 5b7d4699b6f4a6e89b242e7583a80ae8529f5003
+
 
 class Front(object):
     def __init__(self, window):
@@ -159,7 +157,7 @@ class Front(object):
             self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
             self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
 
-
+            '''
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_experimental_option("excludeSwitches", ['enable-automation'])
@@ -177,7 +175,8 @@ class Front(object):
                 call(["screencapture", "screenshot.jpg"])
                 sleep(1.5)
                 browser.close()
-
+            
+            '''
             #display website screenshot on canvas
             screenshot = Image.open("screenshot.jpg")
             size = 320, 200
@@ -430,6 +429,7 @@ class Front(object):
                         try:
                             i = each.attrs('href')
                         except:
+                            print("Error. No href attribute.")
                             continue
 
                     if "@" in i:
@@ -443,23 +443,24 @@ class Front(object):
                         items.remove(item)
 
                 elif search_item=='email':
+                    #ANTONIO: QUITAR ?Subject= (link: https://www.build2perform.co.uk/2019-exhibitors )
+                    #see if email exists with match variable and regex
                     match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$',
                                      item)
-                    if 'mailto:' in item:
+                    print(match)
+
+                    # only keep emails (with no "mailto:" text at the beginning)
+                    if match == None:
+                        items.remove(item)
+
+                    elif '/maps/' in item:
+                        items.remove(item)
+
+                    elif 'mailto:' in item:
                         email_index = items.index(item)
                         items.remove(item)
                         temp = item.split(':')
                         items.insert(email_index, temp[1])
-
-
-                    elif match == None:
-                        items.remove(item)
-
-                    if '/maps/' in item:
-                        items.remove(item)
-
-
-                    # only keep emails (with no "mailto:" text at the beginning)
 
             print(list(set(items)))
             return list(set(items))
@@ -474,7 +475,7 @@ class Front(object):
             soup = BeautifulSoup(content.text, 'lxml')
         except:
             print("no successful soup parser")
-            continue
+            pass
         itemselector = soup.select('a')
 
         #get base URL of website - code partially copied and adapted from
@@ -492,6 +493,7 @@ class Front(object):
                 try:
                     href = each.attrs('href')
                 except:
+                    print("Error. No href attribute.")
                     continue
 
             if href.startswith('/'): #all <a> elements with an href attribute that is a link,
@@ -557,6 +559,7 @@ class Front(object):
                             if search_item in i:
                                 items.append(i)
                         except:
+                            print("Error. No href attribute.")
                             continue
 
                 if search_item=='linkedin':
@@ -623,6 +626,7 @@ class Front(object):
                         try:
                             href = each.attrs('href')
                         except:
+                            print("Error. No href attribute.")
                             continue
 
                     for class_item in class_items:
@@ -745,8 +749,6 @@ class Front(object):
                 print("successfully created")
             except:
                 print("something went wrong")
-
-        pass
 
 window = Tk()
 front = Front(window)
