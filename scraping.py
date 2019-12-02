@@ -437,16 +437,26 @@ class Front(object):
                 if search_item=='location':
                     if '/maps/' not in item:
                         items.remove(item)
-                elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
-                    if '/maps/' in item:
-                        items.remove(item)
 
-                    # only keep emails (with no "mailto:" text at the beginning)
+                elif search_item=='email':
+                    match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$',
+                                     item)
                     if 'mailto:' in item:
                         email_index = items.index(item)
                         items.remove(item)
                         temp = item.split(':')
                         items.insert(email_index, temp[1])
+
+
+                    elif match == None:
+                        items.remove(item)
+
+                    if '/maps/' in item:
+                        items.remove(item)
+
+
+                    # only keep emails (with no "mailto:" text at the beginning)
+
             print(list(set(items)))
             return list(set(items))
 
@@ -713,7 +723,7 @@ class Front(object):
                          relief="raised", text="Exit", command=save_window.destroy)
         self.bt.grid(row=0, column=4)
 
-    def saveBack(self, type, name, df): #back end ANTONIO
+    def saveBack(self, type, name, df):
         result = ""
         if type =="csv":
             file = name + ".csv"
@@ -723,8 +733,13 @@ class Front(object):
             except:
                 result = "Something went wrong when saving..."
         elif type == "excel":
-            file = name + ".xlsx"
-            df.to_excel(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
+            try:
+                file = name + ".xlsx"
+                df.to_excel(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
+                print("successfully created")
+            except:
+                print("something went wrong")
+
         pass
 
 window = Tk()
