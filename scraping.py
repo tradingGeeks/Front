@@ -193,14 +193,38 @@ class Front(object):
         self.data = {}
 
         if self.show_more==True:
-            self.lin_user_cvalue.set(False)
-            self.lin_group_cvalue.set(False)
-            self.lin_corp_cvalue.set(False)
-            self.tw_cvalue.set(False)
-            self.fb_cvalue.set(False)
-            self.in_cvalue.set(False)
-            self.geo_cvalue.set(False)
-            self.ph_cvalue.set(False)
+            try:
+                self.lin_user_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.lin_group_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.lin_corp_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.tw_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.fb_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.in_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.geo_cvalue.set(False)
+            except:
+                pass
+            try:
+                self.ph_cvalue.set(False)
+            except:
+                pass
         self.show_more = False
 
         try:
@@ -255,7 +279,7 @@ class Front(object):
         self.show_more = True
 
         new_window = Toplevel()
-        new_window.geometry("400x300")
+        new_window.geometry("400x200")
         new_window.title("More Scraping Options")
         new_window.configure(background="gray95")
 
@@ -375,46 +399,50 @@ class Front(object):
             url = self.linkSearch("local")
 
         items = []
-        for u in url:
-            print(url.index(u), u)
-            try:
-                content = requests.get(u)
-                soup = BeautifulSoup(content.text, 'lxml')
-            except:
-                continue
+        if len(url) ==0:
+            return items
 
-            itemselector = soup.select('a')
-
-            for each in itemselector:
+        else:
+            for u in url:
+                print(url.index(u), u)
                 try:
-                    i = each.attrs['href']
+                    content = requests.get(u)
+                    soup = BeautifulSoup(content.text, 'lxml')
                 except:
+                    continue
+
+                itemselector = soup.select('a')
+
+                for each in itemselector:
                     try:
-                        i = each.attrs('href')
+                        i = each.attrs['href']
                     except:
-                        continue
+                        try:
+                            i = each.attrs('href')
+                        except:
+                            continue
 
-                if "@" in i:
-                    items.append(i)
-                    print("@ --->", i)
+                    if "@" in i:
+                        items.append(i)
+                        print("@ --->", i)
 
-        for item in items:
-            print(items.index(item), item)
-            if search_item=='location':
-                if '/maps/' not in item:
-                    items.remove(item)
-            elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
-                if '/maps/' in item:
-                    items.remove(item)
+            for item in items:
+                print(items.index(item), item)
+                if search_item=='location':
+                    if '/maps/' not in item:
+                        items.remove(item)
+                elif search_item=='email': #CHECK SI EL EMAIL ES VALIDO ANTONIO
+                    if '/maps/' in item:
+                        items.remove(item)
 
-                # only keep emails (with no "mailto:" text at the beginning)
-                if 'mailto:' in item:
-                    email_index = items.index(item)
-                    items.remove(item)
-                    temp = item.split(':')
-                    items.insert(email_index, temp[1])
-        print(list(set(items)))
-        return list(set(items))
+                    # only keep emails (with no "mailto:" text at the beginning)
+                    if 'mailto:' in item:
+                        email_index = items.index(item)
+                        items.remove(item)
+                        temp = item.split(':')
+                        items.insert(email_index, temp[1])
+            print(list(set(items)))
+            return list(set(items))
 
     def linkSearch(self, type):
         local_links = []
@@ -487,7 +515,7 @@ class Front(object):
                 content = requests.get(url[u])
                 soup = BeautifulSoup(content.text, 'lxml')
             except:
-                return
+                continue
 
             itemselector = soup.select('a')
 
@@ -544,14 +572,15 @@ class Front(object):
 
         phones = []
         for u in url:
+            print(url.index(u), u)
             try:
                 content = requests.get(u)
                 soup = BeautifulSoup(content.text, 'lxml')
             except:
-                return
+                continue
 
             #Select phone number by common used class names for showing phones
-            class_items = ['tel', 'Tel', 'phone', 'Phone',]
+            class_items = ['tel', 'Tel', 'phone', 'Phone', 'call', 'Call']
 
             a_selector = soup.select('a')
             for each in a_selector:
@@ -565,15 +594,26 @@ class Front(object):
 
                 for class_item in class_items:
                     if class_item in href:
+                        print(class_item, "--->", href)
                         phones.append(href)
 
             #p_selector = soup.select('p')
             for class_item in class_items:
                 p_selector = soup.select('p.'+class_item)
-
                 for each in p_selector:
                     ph= each.text
+                    print("PH", ph)
                     phones.append(ph)
+
+        '''
+        temp = ""
+        for p in phones:
+            for letter in p:
+                if not(letter.isalpha()):
+                    temp+=letter
+        phones = temp
+        print(phones)
+        '''
         return list(set(phones))
 
     def viewScrape(self, event):
