@@ -717,35 +717,44 @@ class Front(object):
         self.s_entry.insert(0, self.s_entry_text)
         self.s_entry.grid(row=1, column=1, columnspan=3, sticky="NSEW", padx=3, pady=3)
 
+        self.save_path = StringVar()
+        self.s_path = Entry(master=save_window, textvariable=self.save_path, bg="gray90",
+                             highlightbackground="gray95")
+        self.s_path_text = "File Path"
+        self.s_path.insert(0, self.s_path_text)
+        self.s_path.grid(row=2, column=1, columnspan=3, sticky="NSEW", padx=3, pady=3)
+
         self.lb = Label(master=save_window, text="Enter name of your file without extension: ",
                         font=self.font, fg="gray17", bg="gray95")
         self.lb.grid(row=1, column=0, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="Excel File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get(), df))
-        self.bt.grid(row=2, column=3, sticky="NSEW", padx=3, pady=3)
+                         bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get(), df, self.save_path.get()))
+        self.bt.grid(row=3, column=3, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="CSV File", font=self.font, fg="gray29",
-                         bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get(), df))
-        self.bt.grid(row=2, column=1, sticky="NSEW", padx=3, pady=3)
+                         bg="gray90", relief="raised", command=lambda: self.saveBack("csv", self.save_entry.get(), df, self.save_path.get()))
+        self.bt.grid(row=3, column=1, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, font=self.font, fg="gray29", bg="gray90",
                          relief="raised", text="Exit", command=save_window.destroy)
         self.bt.grid(row=0, column=4)
 
-    def saveBack(self, type, name, df):
+    def saveBack(self, type, name, df, path):
+        # where do you want to save it
         result = ""
         if type =="csv":
             file = name + ".csv"
+            path= path
             try:
-                df.to_csv(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
+                df.to_csv(r"/Users/"+ path + " %s" % file)
                 result = "Correctly Saved"
             except:
                 result = "Something went wrong when saving..."
         elif type == "excel":
             try:
                 file = name + ".xlsx"
-                df.to_excel(r"/Users/chloemartin/Downloads/Fairs/ %s" % file)
+                df.to_csv(r"/Users/"+ path + " %s" % file)
                 print("successfully created")
             except:
                 print("something went wrong")
