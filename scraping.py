@@ -270,6 +270,7 @@ class Front(object):
             #return to main window
             self.bt = Button(master=new_window, text="Validate", command=new_window.destroy)
             self.bt.grid(row=2, column=1, sticky="NSW")
+            print("BORRAR EST")
 
     def showMoreOptions(self):
         #create a new window for showing more scraping options
