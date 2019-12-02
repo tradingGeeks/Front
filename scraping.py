@@ -147,7 +147,7 @@ class Front(object):
             self.canvas = Canvas(master=self.window, width=320, height=200, bg="gray95")
             self.canvas.grid(row=3, column=2, columnspan=7, rowspan=5, padx=5, pady=5, sticky="NSEW")
 
-            '''
+
             #open website from entry widget
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_experimental_option("excludeSwitches", ['enable-automation'])
@@ -162,11 +162,9 @@ class Front(object):
                 self.clearWebsiteEntry
     
             else:
-    
-            call(["screencapture", "screenshot.jpg"])
-            sleep(1.5)
-            browser.close()
-            '''
+                call(["screencapture", "screenshot.jpg"])
+                sleep(1.5)
+                browser.close()
 
             #display website screenshot on canvas
             screenshot = Image.open("screenshot.jpg")
