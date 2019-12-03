@@ -753,24 +753,22 @@ class Front(object):
 
     def saveBack(self, type, name, df, path):
         # where do you want to save it
-        result = ""
         if type =="csv":
             file = name + ".csv"
             path= path+"/"
             user = getpass.getuser()+"/"
             try:
                 df.to_csv(r"/Users/" + user + path + " %s" % file)
-
-                result = "Correctly Saved" #ANTONIO POP UP OR LABEL SUCCESSFULLY CREATED
+                print("successfully created")
             except:
-                result = "Something went wrong when saving..." #ANTONIO POP UP OR LABEL NOT SUCCESSFULLY CREATED
+                print("something went wrong")
         elif type == "excel":
             try:
                 file = name + ".xlsx"
                 df.to_csv(r"/Users/"+ path + " %s" % file)
-                print("successfully created") #ANTONIO POP UP OR LABEL SUCCESSFULLY CREATED
+                print("successfully created")
             except:
-                print("something went wrong") #ANTONIO POP UP OR LABEL NOT SUCCESSFULLY CREATED
+                print("something went wrong")
 
 window = Tk()
 front = Front(window)
