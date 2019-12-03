@@ -390,7 +390,6 @@ class Front(object):
                         cur.execute("INSERT INTO fail VALUES(NULL, ?, ?, ?)", (d, quantity, self.url_entry.get()))
                         db.commit()
 
-
                     elif len(self.data.get(d)) != 0:
                         var = d + "-  Success"
                         self.listbox.insert(END, var)
@@ -408,11 +407,12 @@ class Front(object):
 
         items = []
         if len(url) ==0 or url is None:
+            #https://oceanagold.com/contact-us/
             return items
 
         else:
             for u in url:
-                print(url.index(u), u)
+                #print(url.index(u), u)
                 try:
                     content = requests.get(u)
                     soup = BeautifulSoup(content.text, 'lxml')
@@ -437,32 +437,39 @@ class Front(object):
                         print("@ --->", i)
 
             for item in items:
-                print(items.index(item), item)
+                #print(items.index(item), item)
                 if search_item=='location':
                     if '/maps/' not in item:
                         items.remove(item)
 
                 elif search_item=='email':
-                    #ANTONIO: QUITAR ?Subject= (link: https://www.build2perform.co.uk/2019-exhibitors )
                     #see if email exists with match variable and regex
                     match = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$',
                                      item)
-                    print(match)
-
-                    # only keep emails (with no "mailto:" text at the beginning)
-                    if match == None:
-                        items.remove(item)
-
-                    elif '/maps/' in item:
-                        items.remove(item)
-
-                    elif 'mailto:' in item:
+                    if 'mailto:' in item:
                         email_index = items.index(item)
                         items.remove(item)
                         temp = item.split(':')
                         items.insert(email_index, temp[1])
 
-            print(list(set(items)))
+                    elif '?Subject' in item:
+                        email_index = items.index(item)
+                        items.remove(item)
+                        temp = item.split('?')
+                        items.insert(email_index, temp[0])
+
+                    elif '?Body' in item:
+                        email_index = items.index(item)
+                        items.remove(item)
+                        temp = item.split('?')
+                        items.insert(email_index, temp[0])
+
+                    elif match == None:
+                        items.remove(item)
+
+                    elif '/maps/' in item:
+                        items.remove(item)
+                    # only keep emails (with no "mailto:" text at the beginning)
             return list(set(items))
 
     def linkSearch(self, type):
@@ -475,7 +482,11 @@ class Front(object):
             soup = BeautifulSoup(content.text, 'lxml')
         except:
             print("no successful soup parser")
-            pass
+
+            if type=="foreign":
+                return foreign_links
+            elif type=="local":
+                return local_links
         itemselector = soup.select('a')
 
         #get base URL of website - code partially copied and adapted from
@@ -615,7 +626,8 @@ class Front(object):
                     continue
 
                 #Select phone number by common used class names for showing phones
-                class_items = ['tel', 'Tel', 'phone', 'Phone', 'call', 'Call']
+                class_items = ['tel', 'Tel', 'phone', 'Phone']
+                #call, Call
 
                 a_selector = soup.select('a')
 
@@ -642,16 +654,11 @@ class Front(object):
                         print("PH", ph)
                         phones.append(ph)
 
-
-            '''
-            temp = ""
-            for p in phones:
-                for letter in p:
-                    if not(letter.isalpha()):
-                        temp+=letter
-            phones = temp
-            print(phones)
-            '''
+                for phone in phones: #remove any letters or non numerical values
+                    phone_index= phones.index(phone)
+                    phones.remove(phone)
+                    temp = " ".join(re.findall("[0-9]+", phone))
+                    phones.insert(phone_index, temp)
             return list(set(phones))
 
     def viewScrape(self, event):
@@ -715,6 +722,7 @@ class Front(object):
         self.s_entry = Entry(master=save_window, textvariable=self.save_entry, bg="gray90", highlightbackground="gray95")
         self.s_entry_text = "File name"
         self.s_entry.insert(0, self.s_entry_text)
+        self.s_entry.bind("<Button-1>", functools.partial(lambda x: self.s_entry.delete(0, END)))
         self.s_entry.grid(row=1, column=1, columnspan=3, sticky="NSEW", padx=3, pady=3)
 
         self.save_path = StringVar()
@@ -722,11 +730,16 @@ class Front(object):
                              highlightbackground="gray95")
         self.s_path_text = "File Path"
         self.s_path.insert(0, self.s_path_text)
+        self.s_path.bind("<Button-1>", functools.partial(lambda x: self.s_path.delete(0, END)))
         self.s_path.grid(row=2, column=1, columnspan=3, sticky="NSEW", padx=3, pady=3)
 
         self.lb = Label(master=save_window, text="Enter name of your file without extension: ",
                         font=self.font, fg="gray17", bg="gray95")
         self.lb.grid(row=1, column=0, sticky="NSEW", padx=3, pady=3)
+
+        self.lb = Label(master=save_window, text="Enter path (FatherFolder/SubFolder): ",
+                        font=self.font, fg="gray17", bg="gray95")
+        self.lb.grid(row=2, column=0, sticky="NSEW", padx=3, pady=3)
 
         self.bt = Button(master=save_window, text="Excel File", font=self.font, fg="gray29",
                          bg="gray90", relief="raised", command= lambda: self.saveBack("excel", self.save_entry.get(), df, self.save_path.get()))
@@ -745,19 +758,21 @@ class Front(object):
         result = ""
         if type =="csv":
             file = name + ".csv"
-            path= path
+            path= path+"/"
+            user = getpass.getuser()+"/"
             try:
-                df.to_csv(r"/Users/"+ path + " %s" % file)
-                result = "Correctly Saved"
+                df.to_csv(r"/Users/" + user + path + " %s" % file)
+
+                result = "Correctly Saved" #ANTONIO POP UP OR LABEL SUCCESSFULLY CREATED
             except:
-                result = "Something went wrong when saving..."
+                result = "Something went wrong when saving..." #ANTONIO POP UP OR LABEL NOT SUCCESSFULLY CREATED
         elif type == "excel":
             try:
                 file = name + ".xlsx"
                 df.to_csv(r"/Users/"+ path + " %s" % file)
-                print("successfully created")
+                print("successfully created") #ANTONIO POP UP OR LABEL SUCCESSFULLY CREATED
             except:
-                print("something went wrong")
+                print("something went wrong") #ANTONIO POP UP OR LABEL NOT SUCCESSFULLY CREATED
 
 window = Tk()
 front = Front(window)
