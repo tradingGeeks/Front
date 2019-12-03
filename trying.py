@@ -84,3 +84,10 @@ r.bind("<KeyPress-f>", flash)
 
 r.mainloop()
 '''
+import re
+phone = "tel:18005646253"
+
+
+
+phon = " ".join(re.findall("[0-9]+", phone))
+print(phon)
